@@ -1,13 +1,11 @@
- streamlit 
- pandas 
- numpy 
- pickle
- torch
- torch.nn 
- sklearn.preprocessing 
- warnings
- matplotlib.pyplot 
-torch.optim 
+streamlit 
+pandas 
+numpy 
+pickle
+torch
+sklearn
+warnings
+matplotlib
 networkx
 seaborn
 gdown
