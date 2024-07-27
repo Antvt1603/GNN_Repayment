@@ -32,16 +32,20 @@ class SimpleGNN(nn.Module):
         x = self.sigmoid(x)
         return x
     
-# # Thay thế URL dưới đây bằng URL chia sẻ của file Google Drive
-url = 'https://drive.google.com/uc?id=1EO-Wb6hPnNnv8KSaVBexbcaqa5LBb-pq'
-data_path = 'loan.csv'  # Tên file bạn muốn lưu
+# # # Thay thế URL dưới đây bằng URL chia sẻ của file Google Drive
+# url = 'https://drive.google.com/uc?id=1EO-Wb6hPnNnv8KSaVBexbcaqa5LBb-pq'
+# data_path = 'loan.csv'  # Tên file bạn muốn lưu
 
-gdown.download(url, data_path, quiet=False)
+# gdown.download(url, data_path, quiet=False)
 
 # Load the scaler and model
 scaler_path = 'GNN_Scaler.pkl'
 model_path = 'best_model.pth'
 # data_path = 'data/loan.csv'
+
+# url = 'https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv'
+# df = pd.read_csv(url, index_col=0)
+# print(df.head(5))
 
 try:
     with open(scaler_path, 'rb') as file:
@@ -257,183 +261,183 @@ with content:
                     plt.title('Model Feature Graph')
                     st.pyplot(plt)
 
-    elif nav_item == 'Data Visualization':
-        st.title('Data Visualization')
-        st.write('Visualize the relationship between loan features and loan status.')
+    # elif nav_item == 'Data Visualization':
+    #     st.title('Data Visualization')
+    #     st.write('Visualize the relationship between loan features and loan status.')
 
-        # Đọc dữ liệu từ file loan.csv
-        df_read = pd.read_csv(data_path,low_memory=False)
-        # Calculate the percentage of missing values in df_read
-        percentage_missing = df_read.isnull().sum() / len(df_read) * 100
+    #     # Đọc dữ liệu từ file loan.csv
+    #     df_read = pd.read_csv(data_path,low_memory=False)
+    #     # Calculate the percentage of missing values in df_read
+    #     percentage_missing = df_read.isnull().sum() / len(df_read) * 100
 
-        # Create a new DataFrame with columns from df and index set to None
-        new_df = pd.DataFrame(columns=df_read.columns, index=None)
-        pd.set_option('display.max_columns', None)
+    #     # Create a new DataFrame with columns from df and index set to None
+    #     new_df = pd.DataFrame(columns=df_read.columns, index=None)
+    #     pd.set_option('display.max_columns', None)
 
-        # Creating new Percentage index
-        new_df.loc['Percentage'] = percentage_missing.values
-        new_df
+    #     # Creating new Percentage index
+    #     new_df.loc['Percentage'] = percentage_missing.values
+    #     new_df
 
-        # Keeping only those features with less than 20% of missing values
-        features_to_keep = df_read.columns[((df_read.isnull().sum()/len(df_read))*100 < 20)].to_list()
-        # print("Total features before:",len(df_read.columns))
-        # print("Total features now:",len(features_to_keep))
+    #     # Keeping only those features with less than 20% of missing values
+    #     features_to_keep = df_read.columns[((df_read.isnull().sum()/len(df_read))*100 < 20)].to_list()
+    #     # print("Total features before:",len(df_read.columns))
+    #     # print("Total features now:",len(features_to_keep))
 
-        df1=df_read[features_to_keep]
-        lucky_features=['loan_amnt','term', 'int_rate', 'installment', 'grade', 'sub_grade','emp_length','home_ownership',
-                'annual_inc','verification_status','purpose','dti','delinq_2yrs','inq_last_6mths','open_acc',
-                'pub_rec','revol_bal','revol_util','total_acc','last_pymnt_amnt','loan_status']
-        # print(len(lucky_features))
+    #     df1=df_read[features_to_keep]
+    #     lucky_features=['loan_amnt','term', 'int_rate', 'installment', 'grade', 'sub_grade','emp_length','home_ownership',
+    #             'annual_inc','verification_status','purpose','dti','delinq_2yrs','inq_last_6mths','open_acc',
+    #             'pub_rec','revol_bal','revol_util','total_acc','last_pymnt_amnt','loan_status']
+    #     # print(len(lucky_features))
 
-        df=df1[lucky_features]
-        print("Shape of the dataset:",df.shape)
-        df.head()
+    #     df=df1[lucky_features]
+    #     print("Shape of the dataset:",df.shape)
+    #     df.head()
 
-        df.describe()
+    #     df.describe()
 
-        df_read['loan_status'].unique()
+    #     df_read['loan_status'].unique()
 
-        target_loan= ["Fully Paid","Charged Off"]
-        df=df[df["loan_status"].isin(target_loan)]
-        print(df.shape)
+    #     target_loan= ["Fully Paid","Charged Off"]
+    #     df=df[df["loan_status"].isin(target_loan)]
+    #     print(df.shape)
 
-        df.isnull().sum()
+    #     df.isnull().sum()
 
-        df['emp_length']=df['emp_length'].fillna(df['emp_length'].mode()[0])
-        df['revol_util']=df['revol_util'].fillna(df['revol_util'].median())
+    #     df['emp_length']=df['emp_length'].fillna(df['emp_length'].mode()[0])
+    #     df['revol_util']=df['revol_util'].fillna(df['revol_util'].median())
 
-        # Biểu đồ Loan Status Count theo Term
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.countplot(data=df, x="loan_status", hue="term", palette='dark', ax=ax)
-        ax.set(xlabel='Status', ylabel='')
-        ax.set_title('Loan status count', size=20)
-        st.pyplot(fig)
+    #     # Biểu đồ Loan Status Count theo Term
+    #     fig, ax = plt.subplots(figsize=(10, 4))
+    #     sns.countplot(data=df, x="loan_status", hue="term", palette='dark', ax=ax)
+    #     ax.set(xlabel='Status', ylabel='')
+    #     ax.set_title('Loan status count', size=20)
+    #     st.pyplot(fig)
 
-        # Biểu đồ Loan Status Count theo Verification Status
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.countplot(data=df, x="loan_status", hue="verification_status", palette='coolwarm', ax=ax)
-        ax.set(xlabel='Status', ylabel='')
-        ax.set_title('Loan status count', size=20)
-        st.pyplot(fig)
+    #     # Biểu đồ Loan Status Count theo Verification Status
+    #     fig, ax = plt.subplots(figsize=(10, 4))
+    #     sns.countplot(data=df, x="loan_status", hue="verification_status", palette='coolwarm', ax=ax)
+    #     ax.set(xlabel='Status', ylabel='')
+    #     ax.set_title('Loan status count', size=20)
+    #     st.pyplot(fig)
 
-        # Biểu đồ Loan Status Count theo Employment Length
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.countplot(data=df, x="emp_length", palette='spring', ax=ax)
-        ax.set(xlabel='Length of Employment', ylabel='')
-        ax.set_title('Loan status count', size=20)
-        plt.xticks(rotation='vertical')
-        st.pyplot(fig)
+    #     # Biểu đồ Loan Status Count theo Employment Length
+    #     fig, ax = plt.subplots(figsize=(10, 4))
+    #     sns.countplot(data=df, x="emp_length", palette='spring', ax=ax)
+    #     ax.set(xlabel='Length of Employment', ylabel='')
+    #     ax.set_title('Loan status count', size=20)
+    #     plt.xticks(rotation='vertical')
+    #     st.pyplot(fig)
 
-        # Biểu đồ Loan Grades Count
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.countplot(data=df, y="grade", palette='rocket', ax=ax)
-        ax.set_title('Loan Grades count', size=20)
-        st.pyplot(fig)
+    #     # Biểu đồ Loan Grades Count
+    #     fig, ax = plt.subplots(figsize=(10, 4))
+    #     sns.countplot(data=df, y="grade", palette='rocket', ax=ax)
+    #     ax.set_title('Loan Grades count', size=20)
+    #     st.pyplot(fig)
 
-        # Biểu đồ Purpose vs Loan Amount
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.barplot(data=df, x="purpose", y='loan_amnt', palette='spring', ax=ax)
-        ax.set(xlabel='Purpose', ylabel='Amount')
-        ax.set_title('Purpose vs Loan Amount', size=20)
-        plt.xticks(rotation='vertical')
-        st.pyplot(fig)
+    #     # Biểu đồ Purpose vs Loan Amount
+    #     fig, ax = plt.subplots(figsize=(10, 4))
+    #     sns.barplot(data=df, x="purpose", y='loan_amnt', palette='spring', ax=ax)
+    #     ax.set(xlabel='Purpose', ylabel='Amount')
+    #     ax.set_title('Purpose vs Loan Amount', size=20)
+    #     plt.xticks(rotation='vertical')
+    #     st.pyplot(fig)
 
-        # Biểu đồ Home Ownership vs Annual Income
-        fig, ax = plt.subplots(figsize=(10, 4))
-        sns.barplot(data=df, x="home_ownership", y='annual_inc', palette='viridis', ax=ax)
-        ax.set(xlabel='Home Ownership', ylabel='Annual Income')
-        ax.set_title('Home Ownership vs Annual Income', size=20)
-        st.pyplot(fig)
+    #     # Biểu đồ Home Ownership vs Annual Income
+    #     fig, ax = plt.subplots(figsize=(10, 4))
+    #     sns.barplot(data=df, x="home_ownership", y='annual_inc', palette='viridis', ax=ax)
+    #     ax.set(xlabel='Home Ownership', ylabel='Annual Income')
+    #     ax.set_title('Home Ownership vs Annual Income', size=20)
+    #     st.pyplot(fig)
 
-        # Biểu đồ Heatmap
-        plt.figure(figsize=(15, 10))
-        sns.heatmap(df.corr(), annot=True)
-        plt.title('Heatmap of Features')
-        st.pyplot(plt)
+    #     # Biểu đồ Heatmap
+    #     plt.figure(figsize=(15, 10))
+    #     sns.heatmap(df.corr(), annot=True)
+    #     plt.title('Heatmap of Features')
+    #     st.pyplot(plt)
 
-        # Chia các đặc trưng thành categorical và numerical
-        categorical = [feature for feature in df.columns if df[feature].dtype == 'object']
-        numerical = [feature for feature in df.columns if feature not in categorical]
+    #     # Chia các đặc trưng thành categorical và numerical
+    #     categorical = [feature for feature in df.columns if df[feature].dtype == 'object']
+    #     numerical = [feature for feature in df.columns if feature not in categorical]
 
-        # st.write(f"Categorical columns: {categorical}")
-        # st.write(f"Numerical columns: {numerical}")
+    #     # st.write(f"Categorical columns: {categorical}")
+    #     # st.write(f"Numerical columns: {numerical}")
 
-        # Biểu đồ Histplot cho mỗi biến trong danh sách numerical
-        def histplot_visual(data, column):
-            fig, ax = plt.subplots(3, 5, figsize=(15, 6))
-            fig.suptitle('Histplot for each variable', y=1, size=20)
-            ax = ax.flatten()
-            for i, feature in enumerate(column):
-                sns.histplot(data=data[feature], ax=ax[i], kde=True)
-        histplot_visual(data=df, column=numerical)
-        plt.tight_layout()
-        st.pyplot(plt)
+    #     # Biểu đồ Histplot cho mỗi biến trong danh sách numerical
+    #     def histplot_visual(data, column):
+    #         fig, ax = plt.subplots(3, 5, figsize=(15, 6))
+    #         fig.suptitle('Histplot for each variable', y=1, size=20)
+    #         ax = ax.flatten()
+    #         for i, feature in enumerate(column):
+    #             sns.histplot(data=data[feature], ax=ax[i], kde=True)
+    #     histplot_visual(data=df, column=numerical)
+    #     plt.tight_layout()
+    #     st.pyplot(plt)
 
-        # Biểu đồ Boxplot cho mỗi biến trong danh sách numerical
-        def boxplots_visual(data, column):
-            fig, ax = plt.subplots(3, 5, figsize=(15, 6))
-            fig.suptitle('Boxplot for each variable', y=1, size=20)
-            ax = ax.flatten()
-            for i, feature in enumerate(column):
-                sns.boxplot(data=data[feature], ax=ax[i], orient='h')
-                ax[i].set_title(feature + ', skewness is: ' + str(round(data[feature].skew(axis=0, skipna=True), 2)), fontsize=10)
-                ax[i].set_xlim([min(data[feature]), max(data[feature])])
-        boxplots_visual(data=df, column=numerical)
-        plt.tight_layout()
-        st.pyplot(plt) 
+    #     # Biểu đồ Boxplot cho mỗi biến trong danh sách numerical
+    #     def boxplots_visual(data, column):
+    #         fig, ax = plt.subplots(3, 5, figsize=(15, 6))
+    #         fig.suptitle('Boxplot for each variable', y=1, size=20)
+    #         ax = ax.flatten()
+    #         for i, feature in enumerate(column):
+    #             sns.boxplot(data=data[feature], ax=ax[i], orient='h')
+    #             ax[i].set_title(feature + ', skewness is: ' + str(round(data[feature].skew(axis=0, skipna=True), 2)), fontsize=10)
+    #             ax[i].set_xlim([min(data[feature]), max(data[feature])])
+    #     boxplots_visual(data=df, column=numerical)
+    #     plt.tight_layout()
+    #     st.pyplot(plt) 
 
-        def histplot_visual(data,column):
-            fig, ax = plt.subplots(3,5,figsize=(15,6))
-            fig.suptitle('Histplot for each variable',y=1, size=20)
-            ax=ax.flatten()
-            for i,feature in enumerate(column):
-                sns.histplot(data=data[feature],ax=ax[i], kde=True)
-        histplot_visual(data=df,column=numerical)
-        plt.tight_layout()
-        def histplot_visual(data,column):
-            fig, ax = plt.subplots(3,5,figsize=(15,6))
-            fig.suptitle('Histplot for each variable',y=1, size=20)
-            ax=ax.flatten()
-            for i,feature in enumerate(column):
-                sns.histplot(data=data[feature],ax=ax[i], kde=True)
-        histplot_visual(data=df,column=numerical)
-        plt.tight_layout()
+    #     def histplot_visual(data,column):
+    #         fig, ax = plt.subplots(3,5,figsize=(15,6))
+    #         fig.suptitle('Histplot for each variable',y=1, size=20)
+    #         ax=ax.flatten()
+    #         for i,feature in enumerate(column):
+    #             sns.histplot(data=data[feature],ax=ax[i], kde=True)
+    #     histplot_visual(data=df,column=numerical)
+    #     plt.tight_layout()
+    #     def histplot_visual(data,column):
+    #         fig, ax = plt.subplots(3,5,figsize=(15,6))
+    #         fig.suptitle('Histplot for each variable',y=1, size=20)
+    #         ax=ax.flatten()
+    #         for i,feature in enumerate(column):
+    #             sns.histplot(data=data[feature],ax=ax[i], kde=True)
+    #     histplot_visual(data=df,column=numerical)
+    #     plt.tight_layout()
 
-         # Chọn các cột cho trực quan hóa
-        loan_info_cols = ['loan_amnt', 'term', 'int_rate', 'installment', 'grade', 'sub_grade']
-        borrower_info_cols = ['emp_length', 'home_ownership', 'annual_inc', 'verification_status', 'purpose']
-        loan_details_cols = ['dti', 'delinq_2yrs', 'inq_last_6mths', 'open_acc', 'pub_rec', 'revol_bal', 'revol_util', 'total_acc', 'last_pymnt_amnt']
+    #      # Chọn các cột cho trực quan hóa
+    #     loan_info_cols = ['loan_amnt', 'term', 'int_rate', 'installment', 'grade', 'sub_grade']
+    #     borrower_info_cols = ['emp_length', 'home_ownership', 'annual_inc', 'verification_status', 'purpose']
+    #     loan_details_cols = ['dti', 'delinq_2yrs', 'inq_last_6mths', 'open_acc', 'pub_rec', 'revol_bal', 'revol_util', 'total_acc', 'last_pymnt_amnt']
 
-        st.subheader('Loan Information')
-        fig, axs = plt.subplots(len(loan_info_cols), figsize=(10, 30))
-        for i, col in enumerate(loan_info_cols):
-            if col in df.columns:
-                sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
-                axs[i].set_title(f'{col} Distribution by Loan Status')
-        st.pyplot(fig)
+    #     st.subheader('Loan Information')
+    #     fig, axs = plt.subplots(len(loan_info_cols), figsize=(10, 30))
+    #     for i, col in enumerate(loan_info_cols):
+    #         if col in df.columns:
+    #             sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
+    #             axs[i].set_title(f'{col} Distribution by Loan Status')
+    #     st.pyplot(fig)
 
-        st.subheader('Borrower Information')
-        fig, axs = plt.subplots(len(borrower_info_cols), figsize=(10, 30))
-        for i, col in enumerate(borrower_info_cols):
-            if col in df.columns:
-                sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
-                axs[i].set_title(f'{col} Distribution by Loan Status')
-        st.pyplot(fig)
+    #     st.subheader('Borrower Information')
+    #     fig, axs = plt.subplots(len(borrower_info_cols), figsize=(10, 30))
+    #     for i, col in enumerate(borrower_info_cols):
+    #         if col in df.columns:
+    #             sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
+    #             axs[i].set_title(f'{col} Distribution by Loan Status')
+    #     st.pyplot(fig)
 
-        st.subheader('Loan Details')
-        fig, axs = plt.subplots(len(loan_details_cols), figsize=(10, 45))
-        for i, col in enumerate(loan_details_cols):
-            if col in df.columns:
-                sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
-                axs[i].set_title(f'{col} Distribution by Loan Status')
-        st.pyplot(fig)
+    #     st.subheader('Loan Details')
+    #     fig, axs = plt.subplots(len(loan_details_cols), figsize=(10, 45))
+    #     for i, col in enumerate(loan_details_cols):
+    #         if col in df.columns:
+    #             sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
+    #             axs[i].set_title(f'{col} Distribution by Loan Status')
+    #     st.pyplot(fig)
 
-        # Histplot for each variable in numerical list
-        def histplot_visual(data,column):
-            fig, ax = plt.subplots(3,5,figsize=(15,6))
-            fig.suptitle('Histplot for each variable',y=1, size=20)
-            ax=ax.flatten()
-            for i,feature in enumerate(column):
-                sns.histplot(data=data[feature],ax=ax[i], kde=True)
-        histplot_visual(data=df,column=numerical)
-        plt.tight_layout()
+    #     # Histplot for each variable in numerical list
+    #     def histplot_visual(data,column):
+    #         fig, ax = plt.subplots(3,5,figsize=(15,6))
+    #         fig.suptitle('Histplot for each variable',y=1, size=20)
+    #         ax=ax.flatten()
+    #         for i,feature in enumerate(column):
+    #             sns.histplot(data=data[feature],ax=ax[i], kde=True)
+    #     histplot_visual(data=df,column=numerical)
+    #     plt.tight_layout()
