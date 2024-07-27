@@ -1,2 +1,13 @@
-torch
-torchvision
+ streamlit 
+ pandas 
+ numpy 
+ pickle
+ torch
+ torch.nn 
+ sklearn.preprocessing 
+ warnings
+ matplotlib.pyplot 
+torch.optim 
+networkx
+seaborn
+gdown
