@@ -20,7 +20,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import os
 
 # Accessing the dataset
-dataset_path = "data/loan.csv"
+dataset_path = "loan.csv"
 
 # Reading the dataset
 df_read = pd.read_csv(dataset_path, low_memory=False)
@@ -277,6 +277,16 @@ if os.path.exists(scaler_path):
 else:
     print(f"Failed to save {scaler_path}.")
 
+
+# Biểu đồ: Trước khi xử lý mất cân bằng dữ liệu
+plt.figure(figsize=(8, 6))
+plt.title('Before Balancing')
+df['loan_status'].value_counts().plot(kind='bar', color=['skyblue', 'salmon'])
+plt.xlabel('Loan Status')
+plt.ylabel('Count')
+plt.xticks(rotation=0)
+plt.show()
+
 # Handling imbalanced data and evaluating performance
 
 # Over-sampling using SMOTE
@@ -364,6 +374,22 @@ train_dataset = LoanDefaultDataset(X_train_best, y_train_best)
 test_dataset = LoanDefaultDataset(X_test_scaled, y_test)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+
+
+# Tạo lại DataFrame sau khi cân bằng
+df_balanced = pd.DataFrame(X_train_best, columns=df.columns.drop('loan_status'))
+df_balanced['loan_status'] = y_train_best
+
+# Biểu đồ: Sau khi xử lý mất cân bằng dữ liệu
+plt.figure(figsize=(8, 6))
+plt.title('After Balancing')
+df_balanced['loan_status'].value_counts().plot(kind='bar', color=['skyblue', 'salmon'])
+plt.xlabel('Loan Status')
+plt.ylabel('Count')
+plt.xticks(rotation=0)
+plt.show()
+
+print(df_balanced)
 
 # Re-initialize the model, loss function, and optimizer
 model = SimpleGNN(input_dim, hidden_dim, output_dim)

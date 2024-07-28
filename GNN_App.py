@@ -11,10 +11,47 @@ import torch.optim as optim
 import networkx as nx
 import seaborn as sns
 from io import StringIO
+import requests
 
 import gdown
 
 warnings.filterwarnings(action='ignore')
+# Hàm tải file từ Google Drive
+def download_file_from_google_drive(file_id, destination):
+    URL = "https://drive.google.com/uc?export=download"
+
+    session = requests.Session()
+    response = session.get(URL, params={'id': file_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    save_response_content(response, destination)
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+
+# Define the function to convert emp_length
+def emp_length_to_num(emp_length):
+    if emp_length == '<1':
+        return 0
+    elif emp_length == '10+':
+        return 10
+    else:
+        return int(emp_length)
 
 # Define the GNN model (simplified for this example)
 class SimpleGNN(nn.Module):
@@ -31,21 +68,18 @@ class SimpleGNN(nn.Module):
         x = self.fc2(x)
         x = self.sigmoid(x)
         return x
-    
-# # # Thay thế URL dưới đây bằng URL chia sẻ của file Google Drive
-# url = 'https://drive.google.com/uc?id=1EO-Wb6hPnNnv8KSaVBexbcaqa5LBb-pq'
-# data_path = 'loan.csv'  # Tên file bạn muốn lưu
-
-# gdown.download(url, data_path, quiet=False)
 
 # Load the scaler and model
 scaler_path = 'GNN_Scaler.pkl'
 model_path = 'best_model.pth'
 # data_path = 'data/loan.csv'
 
-# url = 'https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv'
-# df = pd.read_csv(url, index_col=0)
-# print(df.head(5))
+with open('dataset.pkl', 'rb') as file:
+    dfi = pickle.load(file)
+
+# Convert to a DataFrame if it's not already one
+if not isinstance(dfi, pd.DataFrame):
+    dfi = pd.DataFrame(dfi)
 
 try:
     with open(scaler_path, 'rb') as file:
@@ -53,7 +87,40 @@ try:
 except (pickle.UnpicklingError, EOFError, FileNotFoundError) as e:
     st.error(f"Error loading scaler: {e}")
     st.stop()
-    
+feature_names = scaler.feature_names_in_
+# Initialize session state variables if not already present
+if 'Loan_Information' not in st.session_state:
+    st.session_state['Loan_Information'] = {
+        'loan_amnt': 2400,
+        'term': 36,
+        'int_rate': 15.96,
+        'installment': 84.33,
+    }
+
+if 'Borrower_Information' not in st.session_state:
+    st.session_state['Borrower_Information'] = {
+        'grade': 'B',
+        'sub_grade': 'C5',
+        'emp_length': '10+',
+        'home_ownership': 'RENT',
+        'annual_inc': 12252.0,
+        'verification_status': 'Verified',
+    }
+
+if 'Loan_Details' not in st.session_state:
+    st.session_state['Loan_Details'] = {
+        'purpose': 'small_business',
+        'dti': 8.72,
+        'delinq_2yrs': 0.0,
+        'inq_last_6mths': 2.0,
+        'open_acc': 2.0,
+        'pub_rec': 0.0,
+        'revol_bal': 2956.0,
+        'revol_util': 98.5,
+        'total_acc': 10.0,
+        'last_pymnt_amnt': 649.91
+    }
+
 input_dim = 37  # Update this if you have a different number of features
 hidden_dim = 16
 output_dim = 1
@@ -77,12 +144,24 @@ def preprocess_data(df):
     df['grade'] = df['grade'].map({'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6})
     df['sub_grade'] = df['sub_grade'].map({f'{ch}{num}': idx for idx, (ch, num) in enumerate([(ch, num) for ch in 'ABCDEFG' for num in range(1, 6)])})
     df['emp_length'] = df['emp_length'].map({'<1': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10+': 10})
-    df['loan_status'] = df['loan_status'].map({'Fully Paid': 0, 'Charged Off': 1})
+    # df['loan_status'] = df['loan_status'].map({'Fully Paid': 0, 'Charged Off': 1})
 
     # One hot encoding cho các biến phân loại
     df = pd.get_dummies(df, columns=['home_ownership', 'verification_status', 'purpose'], drop_first=True)
 
     return df
+
+# CSS để thay đổi màu nền
+background_css = """
+<style>
+body {
+    background-color: #ADD8E6;  /* Màu nền xanh nhạt */
+}
+</style>
+"""
+
+# Chèn CSS vào ứng dụng
+st.markdown(background_css, unsafe_allow_html=True)
 
 # Tạo container cho sidebar
 sidebar = st.sidebar.container()
@@ -90,7 +169,7 @@ sidebar = st.sidebar.container()
 # Thêm widget vào sidebar
 with sidebar:
     st.header('Navigation')
-    nav_item = st.radio('Go to', ('Home', 'Loan Predict', 'Data Visualization'))
+    nav_item = st.radio('Go to', ('Home', 'Loan Predict from files', 'Loan Predict'))
 
 # Tạo container cho nội dung chính
 content = st.container()
@@ -101,18 +180,33 @@ df_predict = pd.DataFrame()
 # Thêm nội dung vào container chính
 with content:
     if nav_item == 'Home':
-        st.markdown("<h1 style='font-size: 35px;'><u>Lending-Club Loan Prediction App</u></h1>", unsafe_allow_html=True)
-        st.markdown("<h4>Using the power of Artificial Neural Networks to make informed financial decisions</h4>", unsafe_allow_html=True)
+        st.markdown("<h1 style='font-size: 35px;'><u>PREDICTING THE ABILITY OF INDIVIDUAL CUSTOMERS TO REPAY DEBT TO BANKS</u></h1>", unsafe_allow_html=True)
+        st.markdown("<h4>USING THE GRAPH NEURAL NETWORK METHOD</h4>", unsafe_allow_html=True)
         message = """
-        **Welcome to the Loan Status Predictor App!🥳**\n
-        With just a few inputs, our model can predict whether a loan is Fully Paid or Charged Off.\n
-        Thank you for using our Loan Status Predictor App!🤞
+        **Welcome to the Loan Status Predictor App!**\n
+        Just fill in the input information or upload files, this model can predict whether a loan is Fully Paid or Charged Off.\n
+        Thank you for using App!
         """
         st.markdown(message)
 
-    elif nav_item == 'Loan Predict':
+    elif nav_item == 'Loan Predict from files':
+
+        # ID của file Google Drive
+        file_id = '1uZwcoNFHiJb6gtthmGh-Ev-_n8X4vatv'
+        destination = 'Data-Template.csv'
+
+        # Tải file xuống
+        download_file_from_google_drive(file_id, destination)
+
+        # Nút tải xuống file mẫu
+        st.markdown("### Download Sample CSV File")
+        st.download_button(
+            label="Download Sample CSV",
+            data=open(destination, 'rb').read(),
+            file_name=destination,
+            mime='text/csv'
+        )
         st.title('Upload CSV File')
-        
         # Tải file CSV từ người dùng
         uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
         if uploaded_file is not None:
@@ -261,183 +355,131 @@ with content:
                     plt.title('Model Feature Graph')
                     st.pyplot(plt)
 
-    # elif nav_item == 'Data Visualization':
-    #     st.title('Data Visualization')
-    #     st.write('Visualize the relationship between loan features and loan status.')
+    elif nav_item == 'Loan Predict':
+        st.title('Loan Information')
+        st.write('Enter Loan Information here.')
+        
+        loan_col1, loan_col2 = st.columns(2)
+          
+        with loan_col1:
+            loan_amnt = st.number_input('Loan Amount (in $)', min_value=0, step=1000)
+            term = st.selectbox('Term', [36, 60])
+          
+        with loan_col2:
+            int_rate = st.number_input('Interest Rate', min_value=0.0, step=5.0, format="%.2f")
+            installment = st.number_input('Monthly Payment', min_value=0.0, step=50.0, format="%.2f")
 
-    #     # Đọc dữ liệu từ file loan.csv
-    #     df_read = pd.read_csv(data_path,low_memory=False)
-    #     # Calculate the percentage of missing values in df_read
-    #     percentage_missing = df_read.isnull().sum() / len(df_read) * 100
+        st.session_state['Loan_Information'] = {
+            'loan_amnt': loan_amnt,
+            'term': term,
+            'int_rate': int_rate,
+            'installment': installment,
+        }
+        
+        st.title('Borrower Information')
+        st.write('Enter Borrower Information here.')
+        
+        borrower_col1, borrower_col2 = st.columns(2)
+          
+        with borrower_col1:
+            grade = st.selectbox('Grade', np.sort(dfi['grade'].unique(), kind='mergesort'))
+            sub_grade = st.selectbox('Sub-Grade', np.sort(dfi['sub_grade'].unique(), kind='mergesort'))
+            emp_length = st.selectbox('Employment Length (in years)', ['<1', '1', '2', '3',
+                                                    '4', '5', '6', '7',
+                                                    '8', '9', '10+'])
+        with borrower_col2:
+            home_ownership = st.selectbox('Home Ownership', np.sort(dfi['home_ownership'].unique(), kind='mergesort'))
+            home_ownership = home_ownership.replace(" ", "_")
+            annual_inc = st.number_input('Annual Income', min_value=0.0, step=1000.0)
+            verification_status = st.selectbox('Income Verification Status', np.sort(dfi['verification_status'].unique(), kind='mergesort'))
+        
+        st.session_state['Borrower_Information'] = {
+            'grade': grade,
+            'sub_grade': sub_grade,
+            'emp_length': emp_length,
+            'home_ownership': home_ownership,
+            'annual_inc': annual_inc,
+            'verification_status': verification_status,        
+        }
 
-    #     # Create a new DataFrame with columns from df and index set to None
-    #     new_df = pd.DataFrame(columns=df_read.columns, index=None)
-    #     pd.set_option('display.max_columns', None)
+        st.title('Loan Details')
+        st.write('Enter Loan details here.')
 
-    #     # Creating new Percentage index
-    #     new_df.loc['Percentage'] = percentage_missing.values
-    #     new_df
+        loan_detail_col1, loan_detail_col2 = st.columns(2)
 
-    #     # Keeping only those features with less than 20% of missing values
-    #     features_to_keep = df_read.columns[((df_read.isnull().sum()/len(df_read))*100 < 20)].to_list()
-    #     # print("Total features before:",len(df_read.columns))
-    #     # print("Total features now:",len(features_to_keep))
+        with loan_detail_col1:
+            purpose = st.selectbox('Purpose for the loan', np.sort(dfi['purpose'].unique(), kind='mergesort'))
+            dti = st.number_input('Debt-to-Income Ratio (DTI)', min_value=0.0, step=5.0)
+            delinq_2yrs = st.number_input('Delinquency count in the past 2 years', min_value=0.0, step=1.0, max_value=50.0)
+            inq_last_6mths = st.number_input('Number of inquiries in the last 6 months', min_value=0.0, step=1.0, max_value=50.0)
+            open_acc = st.number_input('Number of open credit lines', min_value=0.0, step=1.0, max_value=50.0)
 
-    #     df1=df_read[features_to_keep]
-    #     lucky_features=['loan_amnt','term', 'int_rate', 'installment', 'grade', 'sub_grade','emp_length','home_ownership',
-    #             'annual_inc','verification_status','purpose','dti','delinq_2yrs','inq_last_6mths','open_acc',
-    #             'pub_rec','revol_bal','revol_util','total_acc','last_pymnt_amnt','loan_status']
-    #     # print(len(lucky_features))
+        with loan_detail_col2:
+            pub_rec = st.number_input('Number of derogatory public records', min_value=0.0, step=1.0, max_value=50.0)
+            revol_bal = st.number_input('Revolving balance', min_value=0.0, step=100.0)
+            revol_util = st.number_input('Revolving line utilization rate (%)', min_value=0.0, step=5.0)
+            total_acc = st.number_input('Total number of credit lines', min_value=0.0, step=1.0, max_value=50.0)
+            last_pymnt_amnt = st.number_input('Last payment amount', min_value=0.0, step=100.0)
 
-    #     df=df1[lucky_features]
-    #     print("Shape of the dataset:",df.shape)
-    #     df.head()
+        st.session_state['Loan_Details'] = {
+            'purpose': purpose,
+            'dti': dti,
+            'delinq_2yrs': delinq_2yrs,
+            'inq_last_6mths': inq_last_6mths,
+            'open_acc': open_acc,
+            'pub_rec': pub_rec,
+            'revol_bal': revol_bal,
+            'revol_util': revol_util,
+            'total_acc': total_acc,
+            'last_pymnt_amnt': last_pymnt_amnt,
+        }
+        
+        if st.button('Predict'):
+            # Chuẩn bị dữ liệu đầu vào cho dự đoán
+            loan_info = st.session_state['Loan_Information']
+            borrower_info = st.session_state['Borrower_Information']
+            loan_details = st.session_state['Loan_Details']
+            input_data = {**loan_info, **borrower_info, **loan_details}
+            input_df = pd.DataFrame([input_data])
 
-    #     df.describe()
+            # Chuyển đổi và scale dữ liệu
+            input_df['emp_length'] = input_df['emp_length'].apply(emp_length_to_num)
+            input_df = pd.get_dummies(input_df)
+            for col in feature_names:
+                if col not in input_df.columns:
+                    input_df[col] = 0
+            input_df = input_df[feature_names]
+            input_scaled = scaler.transform(input_df)
+            
+            # Dự đoán
+            with torch.no_grad():
+                input_tensor = torch.tensor(input_scaled, dtype=torch.float32)
+                prediction = model(input_tensor).numpy().flatten()
+                prediction = (prediction > 0.5).astype(int)
+            
+            st.write(f"Prediction: {'Fully Paid' if prediction[0] == 0 else 'Charged Off'}")
+            
+            # Vẽ đồ thị
+            st.write("**Visualizing Input Data as Graph**")   
 
-    #     df_read['loan_status'].unique()
+            # Create a graph
+            G = nx.Graph()
 
-    #     target_loan= ["Fully Paid","Charged Off"]
-    #     df=df[df["loan_status"].isin(target_loan)]
-    #     print(df.shape)
-
-    #     df.isnull().sum()
-
-    #     df['emp_length']=df['emp_length'].fillna(df['emp_length'].mode()[0])
-    #     df['revol_util']=df['revol_util'].fillna(df['revol_util'].median())
-
-    #     # Biểu đồ Loan Status Count theo Term
-    #     fig, ax = plt.subplots(figsize=(10, 4))
-    #     sns.countplot(data=df, x="loan_status", hue="term", palette='dark', ax=ax)
-    #     ax.set(xlabel='Status', ylabel='')
-    #     ax.set_title('Loan status count', size=20)
-    #     st.pyplot(fig)
-
-    #     # Biểu đồ Loan Status Count theo Verification Status
-    #     fig, ax = plt.subplots(figsize=(10, 4))
-    #     sns.countplot(data=df, x="loan_status", hue="verification_status", palette='coolwarm', ax=ax)
-    #     ax.set(xlabel='Status', ylabel='')
-    #     ax.set_title('Loan status count', size=20)
-    #     st.pyplot(fig)
-
-    #     # Biểu đồ Loan Status Count theo Employment Length
-    #     fig, ax = plt.subplots(figsize=(10, 4))
-    #     sns.countplot(data=df, x="emp_length", palette='spring', ax=ax)
-    #     ax.set(xlabel='Length of Employment', ylabel='')
-    #     ax.set_title('Loan status count', size=20)
-    #     plt.xticks(rotation='vertical')
-    #     st.pyplot(fig)
-
-    #     # Biểu đồ Loan Grades Count
-    #     fig, ax = plt.subplots(figsize=(10, 4))
-    #     sns.countplot(data=df, y="grade", palette='rocket', ax=ax)
-    #     ax.set_title('Loan Grades count', size=20)
-    #     st.pyplot(fig)
-
-    #     # Biểu đồ Purpose vs Loan Amount
-    #     fig, ax = plt.subplots(figsize=(10, 4))
-    #     sns.barplot(data=df, x="purpose", y='loan_amnt', palette='spring', ax=ax)
-    #     ax.set(xlabel='Purpose', ylabel='Amount')
-    #     ax.set_title('Purpose vs Loan Amount', size=20)
-    #     plt.xticks(rotation='vertical')
-    #     st.pyplot(fig)
-
-    #     # Biểu đồ Home Ownership vs Annual Income
-    #     fig, ax = plt.subplots(figsize=(10, 4))
-    #     sns.barplot(data=df, x="home_ownership", y='annual_inc', palette='viridis', ax=ax)
-    #     ax.set(xlabel='Home Ownership', ylabel='Annual Income')
-    #     ax.set_title('Home Ownership vs Annual Income', size=20)
-    #     st.pyplot(fig)
-
-    #     # Biểu đồ Heatmap
-    #     plt.figure(figsize=(15, 10))
-    #     sns.heatmap(df.corr(), annot=True)
-    #     plt.title('Heatmap of Features')
-    #     st.pyplot(plt)
-
-    #     # Chia các đặc trưng thành categorical và numerical
-    #     categorical = [feature for feature in df.columns if df[feature].dtype == 'object']
-    #     numerical = [feature for feature in df.columns if feature not in categorical]
-
-    #     # st.write(f"Categorical columns: {categorical}")
-    #     # st.write(f"Numerical columns: {numerical}")
-
-    #     # Biểu đồ Histplot cho mỗi biến trong danh sách numerical
-    #     def histplot_visual(data, column):
-    #         fig, ax = plt.subplots(3, 5, figsize=(15, 6))
-    #         fig.suptitle('Histplot for each variable', y=1, size=20)
-    #         ax = ax.flatten()
-    #         for i, feature in enumerate(column):
-    #             sns.histplot(data=data[feature], ax=ax[i], kde=True)
-    #     histplot_visual(data=df, column=numerical)
-    #     plt.tight_layout()
-    #     st.pyplot(plt)
-
-    #     # Biểu đồ Boxplot cho mỗi biến trong danh sách numerical
-    #     def boxplots_visual(data, column):
-    #         fig, ax = plt.subplots(3, 5, figsize=(15, 6))
-    #         fig.suptitle('Boxplot for each variable', y=1, size=20)
-    #         ax = ax.flatten()
-    #         for i, feature in enumerate(column):
-    #             sns.boxplot(data=data[feature], ax=ax[i], orient='h')
-    #             ax[i].set_title(feature + ', skewness is: ' + str(round(data[feature].skew(axis=0, skipna=True), 2)), fontsize=10)
-    #             ax[i].set_xlim([min(data[feature]), max(data[feature])])
-    #     boxplots_visual(data=df, column=numerical)
-    #     plt.tight_layout()
-    #     st.pyplot(plt) 
-
-    #     def histplot_visual(data,column):
-    #         fig, ax = plt.subplots(3,5,figsize=(15,6))
-    #         fig.suptitle('Histplot for each variable',y=1, size=20)
-    #         ax=ax.flatten()
-    #         for i,feature in enumerate(column):
-    #             sns.histplot(data=data[feature],ax=ax[i], kde=True)
-    #     histplot_visual(data=df,column=numerical)
-    #     plt.tight_layout()
-    #     def histplot_visual(data,column):
-    #         fig, ax = plt.subplots(3,5,figsize=(15,6))
-    #         fig.suptitle('Histplot for each variable',y=1, size=20)
-    #         ax=ax.flatten()
-    #         for i,feature in enumerate(column):
-    #             sns.histplot(data=data[feature],ax=ax[i], kde=True)
-    #     histplot_visual(data=df,column=numerical)
-    #     plt.tight_layout()
-
-    #      # Chọn các cột cho trực quan hóa
-    #     loan_info_cols = ['loan_amnt', 'term', 'int_rate', 'installment', 'grade', 'sub_grade']
-    #     borrower_info_cols = ['emp_length', 'home_ownership', 'annual_inc', 'verification_status', 'purpose']
-    #     loan_details_cols = ['dti', 'delinq_2yrs', 'inq_last_6mths', 'open_acc', 'pub_rec', 'revol_bal', 'revol_util', 'total_acc', 'last_pymnt_amnt']
-
-    #     st.subheader('Loan Information')
-    #     fig, axs = plt.subplots(len(loan_info_cols), figsize=(10, 30))
-    #     for i, col in enumerate(loan_info_cols):
-    #         if col in df.columns:
-    #             sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
-    #             axs[i].set_title(f'{col} Distribution by Loan Status')
-    #     st.pyplot(fig)
-
-    #     st.subheader('Borrower Information')
-    #     fig, axs = plt.subplots(len(borrower_info_cols), figsize=(10, 30))
-    #     for i, col in enumerate(borrower_info_cols):
-    #         if col in df.columns:
-    #             sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
-    #             axs[i].set_title(f'{col} Distribution by Loan Status')
-    #     st.pyplot(fig)
-
-    #     st.subheader('Loan Details')
-    #     fig, axs = plt.subplots(len(loan_details_cols), figsize=(10, 45))
-    #     for i, col in enumerate(loan_details_cols):
-    #         if col in df.columns:
-    #             sns.histplot(data=df, x=col, hue='loan_status', multiple='stack', ax=axs[i])
-    #             axs[i].set_title(f'{col} Distribution by Loan Status')
-    #     st.pyplot(fig)
-
-    #     # Histplot for each variable in numerical list
-    #     def histplot_visual(data,column):
-    #         fig, ax = plt.subplots(3,5,figsize=(15,6))
-    #         fig.suptitle('Histplot for each variable',y=1, size=20)
-    #         ax=ax.flatten()
-    #         for i,feature in enumerate(column):
-    #             sns.histplot(data=data[feature],ax=ax[i], kde=True)
-    #     histplot_visual(data=df,column=numerical)
-    #     plt.tight_layout()
+            # Add nodes with feature values from input_df
+            for col in input_df.columns:
+                 if col != 'loan_status':  # Exclude target variable
+                     G.add_node(col, value=input_df[col].values)
+            # Add edges (connections between features)
+            features = list(input_df.columns)
+            for i in range(len(features)):
+                 for j in range(i + 1, len(features)):
+                    G.add_edge(features[i], features[j])
+                    
+            # Draw the graph
+            pos = nx.spring_layout(G)
+            node_labels = nx.get_node_attributes(G, 'value')
+            plt.figure(figsize=(12, 12))
+            nx.draw(G, pos, with_labels=True, node_size=2000, node_color='skyblue', font_size=10, font_weight='bold')
+            nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): '' for u, v in G.edges()}, font_color='red')
+            plt.title('Input Data Graph')
+            st.pyplot(plt) 
